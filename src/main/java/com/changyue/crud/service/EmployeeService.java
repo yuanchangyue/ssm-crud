@@ -14,12 +14,16 @@ import java.util.List;
  * @create: 2019-07-06 19:23
  */
 @Service
-public class EmployeeService  {
+public class EmployeeService {
 
     @Autowired
     EmployeeMapper employeeMapper;
 
     public List<Employee> getAll() {
         return employeeMapper.selectByExampleWithDept(null);
+    }
+
+    public void saveEmp(Employee employee) {
+        employeeMapper.insertSelective(employee);
     }
 }
