@@ -8,12 +8,13 @@ import com.github.pagehelper.PageInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import javax.validation.Valid;
+import java.util.*;
+import java.util.jar.JarEntry;
 
 /**
  * @program: crud
@@ -27,12 +28,11 @@ public class EmployeeController {
     @Autowired
     EmployeeService employeeService;
 
-
     /**
      * 查询员工 分页显示
      * 只适合浏览器
      *
-     * @return
+     * @return msg
      */
     @RequestMapping(value = "/emp")
     public String getEmp(@RequestParam(value = "pn", defaultValue = "1") Integer pn, Model model) {
@@ -52,7 +52,7 @@ public class EmployeeController {
      * 查询员工 分页显示
      * 前后端分离 返回json数据
      *
-     * @return 数据
+     * @return msg
      */
     @RequestMapping(value = "/emps")
     @ResponseBody
@@ -72,12 +72,99 @@ public class EmployeeController {
      * 员工保存
      *
      * @param employee 前端传来的数据
-     * @return
+     * @return msg
      */
     @RequestMapping(value = "/emps", method = RequestMethod.POST)
     @ResponseBody
-    public Msg saveEmp(Employee employee) {
-        employeeService.saveEmp(employee);
+    public Msg saveEmp(@Valid Employee employee, BindingResult result) {
+        if (result.hasErrors()) {
+
+            Map<String, Object> mapModel = new HashMap<>();
+            //校验失败 返回失败的信息
+            List<FieldError> fieldErrors = result.getFieldErrors();
+            for (FieldError fieldError : fieldErrors) {
+                System.out.println("错误的字段" + fieldError.getField());
+                System.out.println("错误信息" + fieldError.getDefaultMessage());
+                mapModel.put(fieldError.getField(), fieldError.getDefaultMessage());
+            }
+            return Msg.fail().add("errorFile", mapModel);
+        } else {
+            employeeService.saveEmp(employee);
+        }
+        return Msg.success();
+    }
+
+    /**
+     * 员工更新
+     * <p>
+     * 如果前端ajax直接使用PUT请求 请求体中有数据 实体对象没有成功封装
+     * Tomcat:Tomcat不会封装PUT请求的数据 只有POST请求才会
+     * <p>
+     * 直接发送前端PUT
+     * 配置filter HttpPutFormContentFilter 将请求体中的数据包装成Map request重新包装 getParameter 可以获得数据
+     *
+     * @param employee 需要修改的员工信息
+     * @return msg
+     */
+    @RequestMapping(value = "/emp/{empId}", method = RequestMethod.PUT)
+    @ResponseBody
+    public Msg updateEmp(Employee employee) {
+        employeeService.updateEmp(employee);
+        return Msg.success();
+    }
+
+    /**
+     * 校验用户名是否存在
+     *
+     * @return msg
+     */
+    @RequestMapping(value = "/checkuser")
+    @ResponseBody
+    public Msg checkUser(@RequestParam String empname) {
+        boolean isExist = employeeService.checkUser(empname);
+        if (isExist) {
+            return Msg.success();
+        } else {
+            return Msg.fail();
+        }
+    }
+
+    /**
+     * 根据员工id查询员工
+     *
+     * @param id 员工id
+     * @return msg
+     */
+    @RequestMapping(value = "/emps/{id}", method = RequestMethod.GET)
+    @ResponseBody
+    public Msg getEmp(@PathVariable("id") Integer id) {
+        return Msg.success().add("emp", employeeService.getEmp(id));
+    }
+
+
+    /**
+     * 根据员工id删除员工
+     * 单个和批量
+     *
+     * @param id 员工id
+     * @return msg
+     */
+    @RequestMapping(value = "/emps/{id}", method = RequestMethod.DELETE)
+    @ResponseBody
+    public Msg deleteEmp(@PathVariable String id) {
+        if (id.contains("-")) {
+
+            String[] ids = id.split("-");
+            ArrayList<Integer> idsList = new ArrayList<>();
+
+            for (String s : ids) {
+                idsList.add(Integer.parseInt(s));
+            }
+            employeeService.deleteBatch(idsList);
+
+        } else {
+            employeeService.deleteEmp(Integer.parseInt(id));
+        }
         return Msg.success();
     }
 
